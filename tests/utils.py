@@ -3,6 +3,8 @@ from typing import Dict, Set, Union
 from urllib.parse import urlparse
 
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db.models import Sum
+from django.db.models.functions import Coalesce
 from PIL import Image
 from prices import Money
 
@@ -61,3 +63,16 @@ def generate_attribute_map(obj: Union[Product, ProductVariant]) -> Dict[int, Set
         assignment.attribute.pk: {value.pk for value in assignment.values.all()}
         for assignment in qs
     }
+
+
+def get_quantity_allocated_for_stock(stock):
+    """Count how many items are allocated for stock."""
+    return stock.allocations.aggregate(
+        quantity_allocated=Coalesce(Sum("quantity_allocated"), 0)
+    )["quantity_allocated"]
+
+
+def get_available_quantity_for_stock(stock):
+    """Count how many stock items are available."""
+    quantity_allocated = get_quantity_allocated_for_stock(stock)
+    return max(stock.quantity - quantity_allocated, 0)
